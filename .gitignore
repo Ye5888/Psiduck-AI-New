@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual env (created by scripts/install.sh inside the repo)
+.venv/
+venv/
+env/
+
+# In-repo Hugging Face cache (never commit weights)
+.hf_cache/
+*.safetensors
+*.bin
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.DS_Store
+*.swp

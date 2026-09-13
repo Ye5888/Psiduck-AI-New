@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Deliberately not installing torch/transformers: the unit tests and
+      # the benchmark's `--fast` mode both run against SimulatedBackbone /
+      # FakeBackbone, so CI stays fast and needs no model download.
+      - name: Install test + demo dependencies
+        run: pip install pytest matplotlib flask
+      - name: Run unit tests
+        run: python -m pytest
+      - name: Sanity-check the CLI
+        run: python main.py --list
+      - name: Run benchmark (simulated, fast)
+        run: python scripts/benchmark.py --fast --out-dir /tmp/results

@@ -1,0 +1,4 @@
+{
+  "name": "Psiduck-AI",
+  "install": "bash scripts/install.sh"
+}

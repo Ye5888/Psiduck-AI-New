@@ -1,0 +1,16 @@
+# Runtime + dev dependencies for Psiduck-AI.
+# torch is pinned to the CPU build so no CUDA wheel is pulled in this GPU-less
+# environment. The +cpu local version only exists on the PyTorch index below.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.4.1+cpu
+transformers==4.44.2
+accelerate==0.34.2
+
+# Benchmark chart + web demo (scripts/benchmark.py, webapp/app.py). Neither
+# needs torch: both run fine against SimulatedBackbone with just these two.
+matplotlib==3.9.2
+flask==3.0.3
+
+# Testing
+pytest==8.3.2

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Psiduck-AI Demo</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #131a2f;
+    --panel-2: #1a2340;
+    --border: #2a355c;
+    --text: #e7ebf7;
+    --muted: #9aa5c7;
+    --accent: #4f7cff;
+    --accent-2: #ff9f43;
+    --good: #33d17a;
+    --bad: #ff5d5d;
+    --off: #33406b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 60px; min-height: 100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, #1a2450, var(--bg));
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 18px;
+  }
+  .status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--off); flex: none; }
+  .dot.on { background: var(--good); box-shadow: 0 0 10px var(--good); }
+  .dot.sim { background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2); }
+  .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 12px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  select, input[type=number] {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; min-width: 260px;
+  }
+  input[type=number] { min-width: 70px; }
+  button {
+    background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--border); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .amc-badge {
+    display: inline-block; background: var(--accent-2); color: #201400; font-weight: 700;
+    font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .panel h2 { font-size: 1.05rem; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .agents { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .agent {
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--muted);
+    border-radius: 999px; padding: 6px 12px; font-size: 0.78rem; transition: all .15s ease;
+  }
+  .agent.active { border-color: var(--accent); color: white; background: #24306a; box-shadow: 0 0 12px rgba(79,124,255,.5); }
+  .agent.done { border-color: var(--good); color: var(--good); background: #123023; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+  .stat .v { font-size: 1.15rem; font-weight: 700; }
+  .stat .k { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .answer { border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; border: 1px solid var(--border); background: var(--panel-2); min-height: 20px; }
+  .answer.correct { border-color: var(--good); background: #0f2a1c; }
+  .answer.wrong { border-color: var(--bad); background: #2a1414; }
+  .raw { color: var(--muted); font-size: 0.78rem; margin-top: 8px; white-space: pre-wrap; word-break: break-word; }
+  .bench-summary { color: var(--muted); font-size: 0.85rem; margin-top: 8px; white-space: pre-wrap; }
+  img.chart { width: 100%; border-radius: 10px; border: 1px solid var(--border); background: white; }
+  .footer-note { color: var(--muted); font-size: 0.78rem; margin-top: 6px; }
+  .spin { display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid var(--border); border-top-color: var(--accent); animation: sp 0.8s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦆 Psiduck-AI — live demo</h1>
+  <p class="subtitle">One shared model, run two ways: reasoning out loud in English vs. four delegates talking in latent space.</p>
+
+  <div class="card">
+    <div class="status-row">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Backbone not loaded yet — it turns on the moment you click Run.</span>
+    </div>
+    <div class="controls">
+      <div>
+        <label for="problemSelect">Problem</label>
+        <select id="problemSelect"></select>
+      </div>
+      <div>
+        <label for="samples">Self-consistency samples</label>
+        <input type="number" id="samples" min="1" max="15" value="5" />
+      </div>
+      <button id="runBtn">▶ Run comparison</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card panel" id="baselinePanel">
+      <h2>Single LLM <span style="color:var(--muted); font-weight:400; font-size:0.8rem;">— reasons in English</span></h2>
+      <div class="agents"><span class="agent" data-agent="single-llm">LLM generating chain-of-thought…</span></div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="b-tokens">–</div><div class="k">generated tokens</div></div>
+        <div class="stat"><div class="v" id="b-fwd">–</div><div class="k">forward passes</div></div>
+        <div class="stat"><div class="v" id="b-time">–</div><div class="k">wall time (s)</div></div>
+      </div>
+      <div class="answer" id="b-answer">Answer will appear here.</div>
+      <div class="raw" id="b-raw"></div>
+    </div>
+
+    <div class="card panel" id="latentPanel">
+      <h2>Latent 4-agent <span style="color:var(--muted); font-weight:400; font-size:0.8rem;">— zero English between agents</span></h2>
+      <div class="agents">
+        <span class="agent" data-agent="encoder">Encoder</span>
+        <span class="agent" data-agent="algebra">Algebra</span>
+        <span class="agent" data-agent="counting">Counting</span>
+        <span class="agent" data-agent="number theory">Number theory</span>
+        <span class="agent" data-agent="geometry">Geometry / verify</span>
+        <span class="agent" data-agent="decoder">Decoder</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="l-tokens">–</div><div class="k">generated tokens</div></div>
+        <div class="stat"><div class="v" id="l-fwd">–</div><div class="k">forward passes</div></div>
+        <div class="stat"><div class="v" id="l-time">–</div><div class="k">wall time (s)</div></div>
+      </div>
+      <div class="answer" id="l-answer">Answer will appear here.</div>
+      <div class="raw" id="l-raw"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Benchmark: AMC/AIME-style problems</h2>
+    <img class="chart" id="chart" src="/api/benchmark-chart" alt="benchmark chart" />
+    <div class="controls" style="margin-top:12px;">
+      <button class="secondary" id="rerunBtn">↻ Re-run benchmark (simulated)</button>
+    </div>
+    <div class="bench-summary" id="benchSummary"></div>
+    <div class="footer-note">Chart is generated by <code>scripts/benchmark.py</code>. Re-running here uses the fast, dependency-free simulated backbone so it works without a model download; pass <code>--backbone real</code> on the CLI to benchmark the actual model.</div>
+  </div>
+</div>
+
+<script>
+const problemSelect = document.getElementById('problemSelect');
+const runBtn = document.getElementById('runBtn');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+let problems = [];
+
+function agentKeyFromLabel(label) {
+  if (label === 'encoder') return 'encoder';
+  if (label.startsWith('decoder')) return 'decoder';
+  if (label === 'single-llm') return 'single-llm';
+  const l = label.toLowerCase();
+  if (l.includes('algebra')) return 'algebra';
+  if (l.includes('counting')) return 'counting';
+  if (l.includes('number theory')) return 'number theory';
+  if (l.includes('geometry')) return 'geometry';
+  return null;
+}
+
+function setAgentState(panelId, key, state) {
+  const panel = document.getElementById(panelId);
+  const el = panel.querySelector(`[data-agent="${key}"]`);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+
+function resetPanels() {
+  ['baselinePanel', 'latentPanel'].forEach(id => {
+    document.querySelectorAll(`#${id} .agent`).forEach(el => el.classList.remove('active', 'done'));
+  });
+  ['b', 'l'].forEach(p => {
+    document.getElementById(`${p}-tokens`).textContent = '–';
+    document.getElementById(`${p}-fwd`).textContent = '–';
+    document.getElementById(`${p}-time`).textContent = '–';
+    const ans = document.getElementById(`${p}-answer`);
+    ans.textContent = 'Running…';
+    ans.classList.remove('correct', 'wrong');
+    document.getElementById(`${p}-raw`).textContent = '';
+  });
+}
+
+async function loadProblems() {
+  const res = await fetch('/api/problems');
+  problems = await res.json();
+  problemSelect.innerHTML = '';
+  problems.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = `${p.difficulty.toUpperCase()} — ${p.statement.slice(0, 60)}${p.statement.length > 60 ? '…' : ''}`;
+    problemSelect.appendChild(opt);
+  });
+  // Default to the AMC-style problem if present, to show the "runs faster
+  // and more accurately" story on an AMC problem out of the gate.
+  const amcIdx = problems.findIndex(p => p.difficulty === 'amc');
+  if (amcIdx >= 0) problemSelect.selectedIndex = amcIdx;
+}
+
+async function refreshStatus() {
+  const res = await fetch('/api/status');
+  const s = await res.json();
+  if (!s.loaded) {
+    statusDot.className = 'dot';
+    statusText.textContent = 'Backbone not loaded yet — it turns on the moment you click Run.';
+  } else if (s.kind === 'real') {
+    statusDot.className = 'dot on';
+    statusText.textContent = `Real model loaded and on: ${s.name}`;
+  } else {
+    statusDot.className = 'dot sim';
+    statusText.textContent = `Simulated backbone on (no model downloaded in this environment): ${s.name}`;
+  }
+}
+
+function fillResult(prefix, r) {
+  document.getElementById(`${prefix}-tokens`).textContent = r.generated_tokens;
+  document.getElementById(`${prefix}-fwd`).textContent = r.forward_passes;
+  document.getElementById(`${prefix}-time`).textContent = r.wall_time_s;
+  const ans = document.getElementById(`${prefix}-answer`);
+  ans.textContent = `Answer: ${r.answer} ${r.correct ? '✔ correct' : '✘ incorrect'}` +
+    (r.sampled_answers ? `  (samples: ${r.sampled_answers.join(', ')})` : '');
+  ans.classList.add(r.correct ? 'correct' : 'wrong');
+  document.getElementById(`${prefix}-raw`).textContent = r.raw_text || '';
+}
+
+runBtn.addEventListener('click', () => {
+  const id = problemSelect.value;
+  const samples = document.getElementById('samples').value;
+  resetPanels();
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<span class="spin"></span> Running…';
+
+  const es = new EventSource(`/api/run/${encodeURIComponent(id)}?samples=${encodeURIComponent(samples)}`);
+  es.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.type === 'backbone') {
+      refreshStatus();
+    } else if (data.type === 'step') {
+      const panelId = data.approach === 'baseline' ? 'baselinePanel' : 'latentPanel';
+      const key = agentKeyFromLabel(data.label);
+      if (key) {
+        // mark previous agents in this panel done, current one active
+        document.querySelectorAll(`#${panelId} .agent.active`).forEach(el => el.classList.replace('active', 'done'));
+        setAgentState(panelId, key, 'active');
+      }
+    } else if (data.type === 'result') {
+      const prefix = data.approach === 'baseline' ? 'b' : 'l';
+      const panelId = data.approach === 'baseline' ? 'baselinePanel' : 'latentPanel';
+      document.querySelectorAll(`#${panelId} .agent`).forEach(el => el.classList.remove('active'));
+      document.querySelectorAll(`#${panelId} .agent`).forEach(el => el.classList.add('done'));
+      fillResult(prefix, data);
+    } else if (data.type === 'error') {
+      statusText.textContent = `Error: ${data.message}`;
+    } else if (data.type === 'done') {
+      es.close();
+      runBtn.disabled = false;
+      runBtn.textContent = '▶ Run comparison';
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ Run comparison';
+  };
+});
+
+document.getElementById('rerunBtn').addEventListener('click', async (e) => {
+  const btn = e.target;
+  btn.disabled = true;
+  btn.textContent = 'Running benchmark…';
+  try {
+    const res = await fetch('/api/benchmark', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ num_samples: 5 }) });
+    const data = await res.json();
+    document.getElementById('chart').src = '/api/benchmark-chart?t=' + Date.now();
+    if (data.summary) {
+      let lines = [];
+      for (const [approach, d] of Object.entries(data.summary)) {
+        lines.push(`${approach}: ${d.correct}/${d.n} correct, avg ${Math.round(d.generated_tokens / d.n)} generated tokens/problem`);
+      }
+      document.getElementById('benchSummary').textContent = lines.join('\n');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Re-run benchmark (simulated)';
+  }
+});
+
+loadProblems();
+refreshStatus();
+</script>
+</body>
+</html>
